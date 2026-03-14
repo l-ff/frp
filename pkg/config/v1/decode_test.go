@@ -84,3 +84,17 @@ func TestDecodeClientConfigJSON_StrictUnknownProxyField(t *testing.T) {
 	_, err = DecodeClientConfigJSON(data, DecodeOptions{DisallowUnknownFields: true})
 	require.ErrorContains(err, "unknownField")
 }
+
+func TestDecodeClientConfigJSON_ServerPortDefaultBehavior(t *testing.T) {
+	require := require.New(t)
+
+	explicitZero, err := DecodeClientConfigJSON([]byte(`{"serverAddr":"example.com","serverPort":0}`), DecodeOptions{})
+	require.NoError(err)
+	require.NoError(explicitZero.Complete())
+	require.Equal(0, explicitZero.ServerPort)
+
+	omitted, err := DecodeClientConfigJSON([]byte(`{"serverAddr":"example.com"}`), DecodeOptions{})
+	require.NoError(err)
+	require.NoError(omitted.Complete())
+	require.Equal(7000, omitted.ServerPort)
+}

@@ -152,6 +152,12 @@ func DecodeVisitorPluginOptionsJSON(b []byte, options DecodeOptions) (TypedVisit
 }
 
 func DecodeClientConfigJSON(b []byte, options DecodeOptions) (ClientConfig, error) {
+	var root map[string]jsonx.RawMessage
+	if err := jsonx.Unmarshal(b, &root); err != nil {
+		return ClientConfig{}, err
+	}
+	_, serverPortSet := root["serverPort"]
+
 	type rawClientConfig struct {
 		ClientCommonConfig
 		Proxies  []jsonx.RawMessage `json:"proxies,omitempty"`
@@ -168,6 +174,7 @@ func DecodeClientConfigJSON(b []byte, options DecodeOptions) (ClientConfig, erro
 		Proxies:            make([]TypedProxyConfig, 0, len(raw.Proxies)),
 		Visitors:           make([]TypedVisitorConfig, 0, len(raw.Visitors)),
 	}
+	cfg.ClientCommonConfig.SetServerPortSet(serverPortSet)
 
 	for i, proxyData := range raw.Proxies {
 		proxyCfg, err := DecodeProxyConfigurerJSON(proxyData, options)

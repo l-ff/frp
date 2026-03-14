@@ -32,6 +32,10 @@ type ClientConfig struct {
 type ClientCommonConfig struct {
 	APIMetadata
 
+	// serverPortSet indicates whether serverPort was explicitly provided by config input.
+	// It allows preserving explicit 0 as a valid runtime signal.
+	serverPortSet bool `json:"-"`
+
 	Auth AuthClientConfig `json:"auth,omitempty"`
 	// User specifies a prefix for proxy names to distinguish them from other
 	// clients. If this value is not "", proxy names will automatically be
@@ -84,7 +88,9 @@ type ClientCommonConfig struct {
 
 func (c *ClientCommonConfig) Complete() error {
 	c.ServerAddr = util.EmptyOr(c.ServerAddr, "0.0.0.0")
-	c.ServerPort = util.EmptyOr(c.ServerPort, 7000)
+	if !c.serverPortSet {
+		c.ServerPort = util.EmptyOr(c.ServerPort, 7000)
+	}
 	c.LoginFailExit = util.EmptyOr(c.LoginFailExit, lo.ToPtr(true))
 	c.NatHoleSTUNServer = util.EmptyOr(c.NatHoleSTUNServer, "stun.easyvoip.com:3478")
 
@@ -97,6 +103,10 @@ func (c *ClientCommonConfig) Complete() error {
 
 	c.UDPPacketSize = util.EmptyOr(c.UDPPacketSize, 1500)
 	return nil
+}
+
+func (c *ClientCommonConfig) SetServerPortSet(v bool) {
+	c.serverPortSet = v
 }
 
 type ClientTransportConfig struct {

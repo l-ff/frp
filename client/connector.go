@@ -17,6 +17,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -46,6 +47,8 @@ type defaultConnectorImpl struct {
 	ctx context.Context
 	cfg *v1.ClientCommonConfig
 
+	lookupSRV func(ctx context.Context, service, proto, name string) (string, []*net.SRV, error)
+
 	muxSession *fmux.Session
 	quicConn   *quic.Conn
 	closeOnce  sync.Once
@@ -53,8 +56,9 @@ type defaultConnectorImpl struct {
 
 func NewConnector(ctx context.Context, cfg *v1.ClientCommonConfig) Connector {
 	return &defaultConnectorImpl{
-		ctx: ctx,
-		cfg: cfg,
+		ctx:       ctx,
+		cfg:       cfg,
+		lookupSRV: net.DefaultResolver.LookupSRV,
 	}
 }
 
@@ -88,9 +92,14 @@ func (c *defaultConnectorImpl) Open() error {
 		}
 		tlsConfig.NextProtos = []string{"frp"}
 
+		serverEndpoint, err := c.getServerEndpoint()
+		if err != nil {
+			return err
+		}
+
 		conn, err := quic.DialAddr(
 			c.ctx,
-			net.JoinHostPort(c.cfg.ServerAddr, strconv.Itoa(c.cfg.ServerPort)),
+			serverEndpoint,
 			tlsConfig, &quic.Config{
 				MaxIdleTimeout:     time.Duration(c.cfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 				MaxIncomingStreams: int64(c.cfg.Transport.QUIC.MaxIncomingStreams),
@@ -206,12 +215,36 @@ func (c *defaultConnectorImpl) realConnect() (net.Conn, error) {
 		libnet.WithProxy(proxyType, addr),
 		libnet.WithProxyAuth(auth),
 	)
+	serverEndpoint, err := c.getServerEndpoint()
+	if err != nil {
+		return nil, err
+	}
 	conn, err := libnet.DialContext(
 		c.ctx,
-		net.JoinHostPort(c.cfg.ServerAddr, strconv.Itoa(c.cfg.ServerPort)),
+		serverEndpoint,
 		dialOptions...,
 	)
 	return conn, err
+}
+
+func (c *defaultConnectorImpl) getServerEndpoint() (string, error) {
+	if c.cfg.ServerPort != 0 {
+		return net.JoinHostPort(c.cfg.ServerAddr, strconv.Itoa(c.cfg.ServerPort)), nil
+	}
+
+	_, records, err := c.lookupSRV(c.ctx, "", "", c.cfg.ServerAddr)
+	if err != nil {
+		return "", fmt.Errorf("lookup SRV for serverAddr %q failed: %w", c.cfg.ServerAddr, err)
+	}
+	if len(records) == 0 {
+		return "", fmt.Errorf("lookup SRV for serverAddr %q returned no records", c.cfg.ServerAddr)
+	}
+
+	target := strings.TrimSuffix(records[0].Target, ".")
+	if target == "" {
+		return "", fmt.Errorf("lookup SRV for serverAddr %q returned empty target", c.cfg.ServerAddr)
+	}
+	return net.JoinHostPort(target, strconv.Itoa(int(records[0].Port))), nil
 }
 
 func (c *defaultConnectorImpl) Close() error {
