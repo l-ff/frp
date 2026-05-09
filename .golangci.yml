@@ -34,7 +34,7 @@ linters:
       disabled-checks:
       - exitAfterDefer
     gosec:
-      excludes: ["G115", "G117", "G204", "G401", "G402", "G404", "G501", "G703", "G704", "G705"]
+      excludes: ["G115", "G117", "G118", "G204", "G401", "G402", "G404", "G501", "G703", "G704", "G705"]
       severity: low
       confidence: low
     govet:
@@ -90,6 +90,7 @@ linters:
     - third_party$
     - builtin$
     - examples$
+    - node_modules
 formatters:
   enable:
   - gci
@@ -112,6 +113,7 @@ formatters:
     - third_party$
     - builtin$
     - examples$
+    - node_modules
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

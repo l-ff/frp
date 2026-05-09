@@ -1,23 +1,30 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import Overview from '../views/Overview.vue'
 import ClientConfigure from '../views/ClientConfigure.vue'
+import ProxyDetail from '../views/ProxyDetail.vue'
 import ProxyEdit from '../views/ProxyEdit.vue'
+import ProxyList from '../views/ProxyList.vue'
+import VisitorDetail from '../views/VisitorDetail.vue'
 import VisitorEdit from '../views/VisitorEdit.vue'
-import { listStoreProxies } from '../api/frpc'
+import VisitorList from '../views/VisitorList.vue'
+import { useProxyStore } from '../stores/proxy'
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
       path: '/',
-      name: 'Overview',
-      component: Overview,
+      redirect: '/proxies',
     },
     {
-      path: '/configure',
-      name: 'ClientConfigure',
-      component: ClientConfigure,
+      path: '/proxies',
+      name: 'ProxyList',
+      component: ProxyList,
+    },
+    {
+      path: '/proxies/detail/:name',
+      name: 'ProxyDetail',
+      component: ProxyDetail,
     },
     {
       path: '/proxies/create',
@@ -32,6 +39,16 @@ const router = createRouter({
       meta: { requiresStore: true },
     },
     {
+      path: '/visitors',
+      name: 'VisitorList',
+      component: VisitorList,
+    },
+    {
+      path: '/visitors/detail/:name',
+      name: 'VisitorDetail',
+      component: VisitorDetail,
+    },
+    {
       path: '/visitors/create',
       name: 'VisitorCreate',
       component: VisitorEdit,
@@ -43,27 +60,21 @@ const router = createRouter({
       component: VisitorEdit,
       meta: { requiresStore: true },
     },
+    {
+      path: '/config',
+      name: 'ClientConfigure',
+      component: ClientConfigure,
+    },
   ],
 })
-
-const isStoreEnabled = async () => {
-  try {
-    await listStoreProxies()
-    return true
-  } catch (err: any) {
-    if (err?.status === 404) {
-      return false
-    }
-    return true
-  }
-}
 
 router.beforeEach(async (to) => {
   if (!to.matched.some((record) => record.meta.requiresStore)) {
     return true
   }
 
-  const enabled = await isStoreEnabled()
+  const proxyStore = useProxyStore()
+  const enabled = await proxyStore.checkStoreEnabled()
   if (enabled) {
     return true
   }
@@ -71,7 +82,7 @@ router.beforeEach(async (to) => {
   ElMessage.warning(
     'Store is disabled. Enable Store in frpc config to create or edit store entries.',
   )
-  return { name: 'Overview' }
+  return { name: 'ProxyList' }
 })
 
 export default router

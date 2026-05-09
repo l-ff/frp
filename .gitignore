@@ -18,6 +18,7 @@ release/
 test/bin/
 vendor/
 lastversion/
+.cache/
 dist/
 .idea/
 .vscode/
@@ -25,9 +26,12 @@ dist/
 client.crt
 client.key
 
+node_modules/
+
 # Cache
 *.swp
 
 # AI
 .claude/
 .sisyphus/
+.superpowers/

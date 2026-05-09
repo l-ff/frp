@@ -88,6 +88,11 @@ func (v *ConfigValidator) validateAuthConfig(c *v1.AuthClientConfig) (Warning, e
 	if err := v.validateOIDCConfig(&c.OIDC); err != nil {
 		errs = AppendError(errs, err)
 	}
+	if c.Method == v1.AuthMethodOIDC && c.OIDC.TokenSource == nil {
+		if err := ValidateOIDCClientCredentialsConfig(&c.OIDC); err != nil {
+			errs = AppendError(errs, err)
+		}
+	}
 	return nil, errs
 }
 
@@ -140,6 +145,9 @@ func validateTransportConfig(c *v1.ClientTransportConfig) (Warning, error) {
 
 	if !slices.Contains(SupportedTransportProtocols, c.Protocol) {
 		errs = AppendError(errs, fmt.Errorf("invalid transport.protocol, optional values are %v", SupportedTransportProtocols))
+	}
+	if !slices.Contains(SupportedWireProtocols, c.WireProtocol) {
+		errs = AppendError(errs, fmt.Errorf("invalid transport.wireProtocol, optional values are %v", SupportedWireProtocols))
 	}
 	return warnings, errs
 }
